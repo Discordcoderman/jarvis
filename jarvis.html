@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JARVIS Voice Assistant</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #000;
+            color: #fff;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        /* Animated background */
+        .background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at center, #0a0e27 0%, #000 100%);
+            z-index: -1;
+        }
+
+        .particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        /* Main orb container */
+        .orb-container {
+            position: relative;
+            width: 300px;
+            height: 300px;
+            margin-bottom: 80px;
+            z-index: 10;
+        }
+
+        /* Main orb */
+        .orb {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, #00d4ff, #0066cc);
+            box-shadow: 
+                0 0 60px rgba(0, 212, 255, 0.6),
+                0 0 100px rgba(0, 212, 255, 0.4),
+                inset 0 0 60px rgba(0, 212, 255, 0.3);
+            animation: float 3s ease-in-out infinite;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 10;
+        }
+
+        .orb:hover {
+            transform: translate(-50%, -50%) scale(1.05);
+        }
+
+        .orb.listening {
+            animation: pulse 1s ease-in-out infinite, float 3s ease-in-out infinite;
+            box-shadow: 
+                0 0 100px rgba(255, 100, 100, 0.8),
+                0 0 150px rgba(255, 100, 100, 0.6),
+                inset 0 0 80px rgba(255, 100, 100, 0.4);
+            background: radial-gradient(circle at 30% 30%, #ff6464, #ff0066);
+        }
+
+        .orb.thinking {
+            animation: rotate 2s linear infinite, float 3s ease-in-out infinite;
+        }
+
+        .orb.speaking {
+            animation: wave 0.5s ease-in-out infinite, float 3s ease-in-out infinite;
+            box-shadow: 
+                0 0 100px rgba(0, 255, 136, 0.8),
+                0 0 150px rgba(0, 255, 136, 0.6),
+                inset 0 0 80px rgba(0, 255, 136, 0.4);
+            background: radial-gradient(circle at 30% 30%, #00ff88, #00cc66);
+        }
+
+        /* Orb rings */
+        .ring {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border-radius: 50%;
+            border: 2px solid rgba(0, 212, 255, 0.3);
+            pointer-events: none;
+        }
+
+        .ring1 {
+            width: 220px;
+            height: 220px;
+            animation: ringPulse 2s ease-in-out infinite;
+        }
+
+        .ring2 {
+            width: 250px;
+            height: 250px;
+            animation: ringPulse 2s ease-in-out infinite 0.3s;
+        }
+
+        .ring3 {
+            width: 280px;
+            height: 280px;
+            animation: ringPulse 2s ease-in-out infinite 0.6s;
+        }
+
+        /* Status text at bottom */
+        .status-container {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            width: 90%;
+            max-width: 800px;
+        }
+
+        .status-text {
+            font-size: 1.2em;
+            color: #00d4ff;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            font-weight: 300;
+        }
+
+        .transcript {
+            font-size: 1.5em;
+            color: #fff;
+            min-height: 60px;
+            padding: 20px;
+            background: rgba(0, 212, 255, 0.1);
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            line-height: 1.4;
+        }
+
+        .transcript.empty {
+            color: #666;
+            font-style: italic;
+        }
+
+        /* Animations */
+        @keyframes float {
+            0%, 100% { transform: translate(-50%, -50%) translateY(0); }
+            50% { transform: translate(-50%, -50%) translateY(-20px); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+            50% { transform: translate(-50%, -50%) scale(1.1); opacity: 0.8; }
+        }
+
+        @keyframes ringPulse {
+            0%, 100% { 
+                transform: translate(-50%, -50%) scale(1);
+                opacity: 0.3;
+            }
+            50% { 
+                transform: translate(-50%, -50%) scale(1.2);
+                opacity: 0;
+            }
+        }
+
+        @keyframes rotate {
+            from { transform: translate(-50%, -50%) rotate(0deg); }
+            to { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        @keyframes wave {
+            0%, 100% { border-radius: 50%; }
+            25% { border-radius: 45% 55% 50% 50%; }
+            50% { border-radius: 50% 50% 45% 55%; }
+            75% { border-radius: 55% 45% 55% 45%; }
+        }
+
+        /* Instruction text */
+        .instruction {
+            position: fixed;
+            top: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 1.1em;
+            color: #666;
+            text-align: center;
+            animation: fadeIn 2s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* Audio visualizer bars */
+        .visualizer {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: none;
+            gap: 5px;
+        }
+
+        .visualizer.active {
+            display: flex;
+        }
+
+        .bar {
+            width: 4px;
+            height: 20px;
+            background: rgba(0, 212, 255, 0.8);
+            border-radius: 2px;
+            animation: barWave 0.8s ease-in-out infinite;
+        }
+
+        .bar:nth-child(2) { animation-delay: 0.1s; }
+        .bar:nth-child(3) { animation-delay: 0.2s; }
+        .bar:nth-child(4) { animation-delay: 0.3s; }
+        .bar:nth-child(5) { animation-delay: 0.4s; }
+
+        @keyframes barWave {
+            0%, 100% { height: 20px; }
+            50% { height: 60px; }
+        }
+
+        /* Error message */
+        .error {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 100, 100, 0.2);
+            border: 1px solid rgba(255, 100, 100, 0.5);
+            padding: 15px 30px;
+            border-radius: 10px;
+            color: #ff6464;
+            display: none;
+        }
+
+        .error.show {
+            display: block;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        @keyframes slideDown {
+            from { transform: translateX(-50%) translateY(-100px); opacity: 0; }
+            to { transform: translateX(-50%) translateY(0); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="background"></div>
+    
+    <div class="instruction">
+        Click the orb and speak
+    </div>
+
+    <div class="error" id="errorMsg"></div>
+
+    <div class="orb-container">
+        <div class="ring ring1"></div>
+        <div class="ring ring2"></div>
+        <div class="ring ring3"></div>
+        <div class="orb" id="orb">
+            <div class="visualizer" id="visualizer">
+                <div class="bar"></div>
+                <div class="bar"></div>
+                <div class="bar"></div>
+                <div class="bar"></div>
+                <div class="bar"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="status-container">
+        <div class="status-text" id="statusText">TAP TO SPEAK</div>
+        <div class="transcript empty" id="transcript">Waiting for your command...</div>
+    </div>
+
+    <script>
+        const API_KEY = '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';
+        const API_URL = 'https://openrouter.ai/api/v1/chat/completions';
+        const MODEL = 'deepseek/deepseek-chat';
+        
+        // Test on page load
+        window.addEventListener('load', () => {
+            console.log('Page loaded - Testing microphone access...');
+            if (!recognition) {
+                showError('Speech recognition not supported. Use Chrome or Edge.');
+            }
+            
+            // Add click listener to orb
+            const orbElement = document.getElementById('orb');
+            orbElement.addEventListener('click', toggleListening);
+            console.log('Click listener added to orb');
+        });
+
+        let recognition;
+        let isListening = false;
+        let selectedVoice;
+        const orb = document.getElementById('orb');
+        const statusText = document.getElementById('statusText');
+        const transcript = document.getElementById('transcript');
+        const visualizer = document.getElementById('visualizer');
+
+        // Initialize Speech Recognition
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = true;
+            recognition.lang = 'en-US';
+
+            recognition.onstart = () => {
+                isListening = true;
+                setStatus('listening', 'LISTENING...');
+                visualizer.classList.add('active');
+            };
+
+            recognition.onresult = (event) => {
+                const result = event.results[event.results.length - 1];
+                const text = result[0].transcript;
+                
+                transcript.classList.remove('empty');
+                transcript.textContent = text;
+
+                if (result.isFinal) {
+                    processMessage(text);
+                }
+            };
+
+            recognition.onerror = (event) => {
+                console.error('Speech recognition error:', event.error);
+                showError('Error: ' + event.error);
+                setStatus('idle', 'TAP TO SPEAK');
+                isListening = false;
+            };
+
+            recognition.onend = () => {
+                isListening = false;
+                visualizer.classList.remove('active');
+                if (orb.classList.contains('listening')) {
+                    setStatus('idle', 'TAP TO SPEAK');
+                }
+            };
+        } else {
+            showError('Speech recognition not supported. Please use Chrome or Edge.');
+        }
+
+        // Initialize Speech Synthesis
+        function loadVoices() {
+            const voices = speechSynthesis.getVoices();
+            
+            // Try to find a good male voice
+            selectedVoice = voices.find(voice => 
+                voice.name.includes('Male') || 
+                voice.name.includes('David') || 
+                voice.name.includes('male')
+            ) || voices[0];
+        }
+
+        speechSynthesis.onvoiceschanged = loadVoices;
+        loadVoices();
+
+        function toggleListening() {
+            console.log('Orb clicked!');
+            
+            if (!recognition) {
+                showError('Speech recognition not available. Please use Chrome or Edge browser.');
+                return;
+            }
+
+            if (isListening) {
+                console.log('Stopping recognition...');
+                recognition.stop();
+            } else {
+                console.log('Starting recognition...');
+                transcript.classList.add('empty');
+                transcript.textContent = 'Listening...';
+                try {
+                    recognition.start();
+                } catch (error) {
+                    console.error('Recognition start error:', error);
+                    showError('Failed to start microphone: ' + error.message);
+                }
+            }
+        }
+
+        async function processMessage(text) {
+            setStatus('thinking', 'PROCESSING...');
+            transcript.textContent = text;
+
+            // For testing without API - remove this block once API works
+            const USE_TEST_MODE = false; // Set to true to test without API
+            
+            if (USE_TEST_MODE) {
+                setTimeout(() => {
+                    const reply = "I heard you say: " + text + ". This is test mode. The API connection needs to be fixed.";
+                    setStatus('speaking', 'SPEAKING...');
+                    transcript.textContent = reply;
+                    speak(reply);
+                }, 1000);
+                return;
+            }
+
+            try {
+                console.log('Sending to API:', text);
+                
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${API_KEY}`,
+                        'Content-Type': 'application/json',
+                        'HTTP-Referer': window.location.href,
+                        'X-Title': 'JARVIS Voice Assistant'
+                    },
+                    body: JSON.stringify({
+                        model: MODEL,
+                        messages: [{ role: 'user', content: text }],
+                        max_tokens: 700,
+                        temperature: 0.7
+                    })
+                });
+
+                console.log('API Response status:', response.status);
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('API Error:', errorText);
+                    throw new Error(`API Error: ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log('API Response:', data);
+                
+                const reply = data.choices[0].message.content;
+
+                setStatus('speaking', 'SPEAKING...');
+                transcript.textContent = reply;
+                speak(reply);
+
+            } catch (error) {
+                console.error('Error:', error);
+                let errorMsg = 'Error: ';
+                
+                if (error.message.includes('Failed to fetch') || error.name === 'TypeError') {
+                    errorMsg = 'CORS Error: Cannot connect to API from browser. You need to either: 1) Run through a local server (python -m http.server), 2) Use a proxy server, or 3) Enable test mode by setting USE_TEST_MODE = true in the code.';
+                } else {
+                    errorMsg += error.message;
+                }
+                
+                showError(errorMsg);
+                setStatus('idle', 'TAP TO SPEAK');
+                
+                // Speak the error
+                speak('Sorry, I encountered an error connecting to the API. Check the console for details.');
+            }
+        }
+
+        function speak(text) {
+            speechSynthesis.cancel();
+
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.voice = selectedVoice;
+            utterance.rate = 1.0;
+            utterance.pitch = 1.0;
+            utterance.volume = 1.0;
+
+            utterance.onend = () => {
+                setStatus('idle', 'TAP TO SPEAK');
+                setTimeout(() => {
+                    transcript.classList.add('empty');
+                    transcript.textContent = 'Waiting for your command...';
+                }, 3000);
+            };
+
+            speechSynthesis.speak(utterance);
+        }
+
+        function setStatus(state, text) {
+            orb.className = 'orb ' + state;
+            statusText.textContent = text;
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMsg');
+            errorDiv.textContent = message;
+            errorDiv.classList.add('show');
+            
+            setTimeout(() => {
+                errorDiv.classList.remove('show');
+            }, 5000);
+        }
+
+        // Create particle effect
+        function createParticles() {
+            const canvas = document.createElement('canvas');
+            canvas.className = 'particles';
+            document.body.appendChild(canvas);
+            const ctx = canvas.getContext('2d');
+
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            const particles = [];
+            for (let i = 0; i < 50; i++) {
+                particles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    radius: Math.random() * 2,
+                    vx: (Math.random() - 0.5) * 0.5,
+                    vy: (Math.random() - 0.5) * 0.5
+                });
+            }
+
+            function animate() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                particles.forEach(p => {
+                    p.x += p.vx;
+                    p.y += p.vy;
+
+                    if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
+                    if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
+
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(0, 212, 255, 0.3)';
+                    ctx.fill();
+                });
+
+                requestAnimationFrame(animate);
+            }
+
+            animate();
+        }
+
+        createParticles();
+
+        window.addEventListener('resize', () => {
+            const canvas = document.querySelector('.particles');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+    </script>
+</body>
+</html>
